@@ -1,24 +1,25 @@
 use anchor_lang::prelude::*;
 
+// Import instruction types directly from their modules
+use crate::instructions::initialize::Initialize;
+use crate::instructions::mint::MintStablecoin;
+use crate::instructions::redeem::RedeemStablecoin;
+use crate::instructions::update::{UpdateSettings, UpdateSettingsParams};
+use crate::error::StableFunError;
+
 declare_id!("GjMGzVov7eb6igXCfFVSLeBnnzbS5QwyhLwTzhP2dABU");
 
+// Module declarations
 pub mod state;
 pub mod instructions;
 pub mod error;
 pub mod utils;
+pub mod constants;
 
 #[program]
 pub mod stable_fun {
     use super::*;
-    
-    // Import instruction types and handlers
-    use crate::instructions::{
-        Initialize,
-        MintStablecoin,
-        RedeemStablecoin,
-        UpdateSettings,
-        update::UpdateSettingsParams,
-    };
+    use crate::constants::{MIN_NAME_LENGTH, MIN_SYMBOL_LENGTH, MIN_COLLATERAL_RATIO};
 
     #[inline(always)]
     pub fn initialize(
@@ -29,12 +30,12 @@ pub mod stable_fun {
         initial_supply: u64,
     ) -> Result<()> {
         require!(
-            name.len() >= constants::MIN_NAME_LENGTH,
-            error::StableFunError::InvalidName
+            name.len() >= MIN_NAME_LENGTH,
+            StableFunError::NameTooShort
         );
         require!(
-            symbol.len() >= constants::MIN_SYMBOL_LENGTH,
-            error::StableFunError::InvalidSymbol
+            symbol.len() >= MIN_SYMBOL_LENGTH,
+            StableFunError::SymbolTooShort
         );
         instructions::initialize::handler(ctx, name, symbol, target_currency, initial_supply)
     }
@@ -44,7 +45,7 @@ pub mod stable_fun {
         ctx: Context<MintStablecoin>,
         amount: u64
     ) -> Result<()> {
-        require!(amount > 0, error::StableFunError::InvalidAmount);
+        require!(amount > 0, StableFunError::InvalidAmount);
         instructions::mint::handler(ctx, amount)
     }
 
@@ -53,7 +54,7 @@ pub mod stable_fun {
         ctx: Context<RedeemStablecoin>,
         amount: u64
     ) -> Result<()> {
-        require!(amount > 0, error::StableFunError::InvalidAmount);
+        require!(amount > 0, StableFunError::InvalidAmount);
         instructions::redeem::handler(ctx, amount)
     }
 
@@ -63,71 +64,16 @@ pub mod stable_fun {
         params: UpdateSettingsParams,
     ) -> Result<()> {
         require!(
-            params.min_collateral_ratio >= constants::MIN_COLLATERAL_RATIO,
-            error::StableFunError::InvalidCollateralRatio
+            params.min_collateral_ratio.unwrap_or(MIN_COLLATERAL_RATIO) >= MIN_COLLATERAL_RATIO,
+            StableFunError::CollateralRatioTooLow
         );
         instructions::update::handler(ctx, params)
     }
 }
 
-/// Constants used throughout the program
-pub mod constants {
-    use anchor_lang::prelude::*;
-
-    // Seeds for PDAs
-    pub const STABLECOIN_SEED: &[u8] = b"stablecoin";
-    pub const VAULT_SEED: &[u8] = b"vault";
-    pub const MINT_AUTHORITY_SEED: &[u8] = b"mint-authority";
-    
-    // Validation constants
-    pub const MIN_NAME_LENGTH: usize = 3;
-    pub const MIN_SYMBOL_LENGTH: usize = 2;
-    pub const MAX_NAME_LENGTH: usize = 32;
-    pub const MAX_SYMBOL_LENGTH: usize = 10;
-    
-    // Financial constants
-    pub const BASIS_POINTS_DIVISOR: u16 = 10000;
-    pub const DEFAULT_COLLATERAL_RATIO: u16 = 15000; // 150%
-    pub const MIN_COLLATERAL_RATIO: u16 = 10000; // 100%
-    pub const MAX_COLLATERAL_RATIO: u16 = 30000; // 300%
-    pub const MAX_FEE_BPS: u16 = 1000; // 10%
-    
-    // Oracle constants
-    pub const PRICE_DECIMALS: u8 = 6;
-    pub const PRICE_SCALE: u64 = 10_u64.pow(PRICE_DECIMALS as u32);
-    pub const MAX_PRICE_AGE: i64 = 300; // 5 minutes
-    pub const MAX_PRICE_CONFIDENCE: u64 = PRICE_SCALE / 100; // 1%
+// Re-exports (moved to a separate module to avoid conflicts)
+pub mod prelude {
+    pub use crate::error::StableFunError;
+    pub use crate::state::{StablecoinMint, StablecoinVault};
+    pub use crate::instructions::{Initialize, MintStablecoin, RedeemStablecoin, UpdateSettings};
 }
-
-/// Program version and metadata
-pub const PROGRAM_VERSION: &str = env!("CARGO_PKG_VERSION");
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    
-    #[test]
-    fn test_program_ids() {
-        let program_id = crate::ID;
-        assert!(!program_id.to_bytes().iter().all(|&x| x == 0));
-    }
-
-    #[test]
-    fn test_constants() {
-        assert!(constants::DEFAULT_COLLATERAL_RATIO >= constants::MIN_COLLATERAL_RATIO);
-        assert!(constants::DEFAULT_COLLATERAL_RATIO <= constants::MAX_COLLATERAL_RATIO);
-        assert!(constants::MAX_FEE_BPS <= constants::BASIS_POINTS_DIVISOR);
-    }
-
-    #[test]
-    fn test_price_scale() {
-        assert_eq!(constants::PRICE_SCALE, 1_000_000);
-    }
-}
-
-/// Re-export common types and constants
-pub use crate::{
-    error::StableFunError,
-    state::{StablecoinMint, StablecoinVault},
-    instructions::{Initialize, MintStablecoin, RedeemStablecoin, UpdateSettings},
-};

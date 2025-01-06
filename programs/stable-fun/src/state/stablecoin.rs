@@ -1,5 +1,6 @@
 use anchor_lang::prelude::*;
 use crate::error::StableFunError;
+use crate::state::StateAccount; 
 
 // Constants
 pub const MAX_NAME_LENGTH: usize = 32;
@@ -17,7 +18,9 @@ pub struct StablecoinSettings {
     /// Minimum collateral ratio (e.g. 150%)
     pub min_collateral_ratio: u16,
     /// Whether minting is paused
-    pub paused: bool,
+    pub mint_paused: bool,
+    /// Whether redeeming is paused
+    pub redeem_paused: bool,
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug, Default)]
@@ -151,6 +154,26 @@ impl StablecoinMint {
             .checked_mul(self.settings.fee_basis_points as u64)
             .and_then(|product| product.checked_div(10000))
             .ok_or(error!(StableFunError::MathOverflow))
+    }
+
+
+    pub fn is_mint_paused(&self) -> bool {
+        self.settings.mint_paused
+    }
+
+    pub fn is_redeem_paused(&self) -> bool {
+        self.settings.redeem_paused
+    }
+
+    pub fn can_mint(&self, amount: u64) -> bool {
+        if self.is_mint_paused() {
+            return false;
+        }
+        
+        // Check against max supply
+        self.current_supply
+            .checked_add(amount)
+            .map_or(false, |new_supply| new_supply <= self.settings.max_supply)
     }
 }
 

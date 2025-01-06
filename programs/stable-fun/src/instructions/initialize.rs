@@ -134,7 +134,8 @@ pub fn handler(
         min_collateral_ratio: DEFAULT_COLLATERAL_RATIO,
         fee_basis_points: 30, // 0.3% fee
         max_supply: u64::MAX,
-        paused: false,
+        mint_paused: false,
+        redeem_paused: false,
     };
 
     // Initialize statistics

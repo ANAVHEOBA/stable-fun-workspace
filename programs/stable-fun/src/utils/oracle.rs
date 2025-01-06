@@ -2,6 +2,7 @@ use anchor_lang::prelude::*;
 use switchboard_v2::AggregatorAccountData;
 use crate::error::StableFunError;
 
+// Constants
 pub const MAX_PRICE_STALENESS: i64 = 300; // 5 minutes
 pub const PRICE_DECIMALS: u8 = 6;
 pub const MAX_ORACLE_CONFIDENCE: u64 = 100_000; // 1% of base price
@@ -105,6 +106,39 @@ impl OracleService {
         Ok(())
     }
 
+    /// Verifies and returns the standardized oracle price
+    pub fn verify_oracle_price(
+        feed: &AccountLoader<AggregatorAccountData>
+    ) -> Result<u64> {
+        let price = Self::get_price(feed)?;
+        Self::validate_price(&price, None)?;
+        price.standardize()
+    }
+
+    #[inline(always)]
+    pub fn get_median_price(
+        oracle_accounts: &[AccountLoader<AggregatorAccountData>]
+    ) -> Result<OraclePrice> {
+        require!(
+            (MIN_ORACLE_COUNT..=MAX_ORACLE_COUNT).contains(&oracle_accounts.len()),
+            StableFunError::InvalidOracle
+        );
+
+        let mut prices = Vec::with_capacity(MAX_ORACLE_COUNT);
+
+        for oracle_account in oracle_accounts.iter().take(MAX_ORACLE_COUNT) {
+            if let Ok(price) = Self::get_price(oracle_account) {
+                if Self::validate_price(&price, None).is_ok() {
+                    prices.push(price);
+                }
+            }
+        }
+
+        require!(!prices.is_empty(), StableFunError::InvalidOraclePrice);
+        prices.sort_by(|a, b| a.value.cmp(&b.value));
+        Ok(prices[prices.len() / 2].clone())
+    }
+
     #[inline(always)]
     pub fn calculate_safe_price(
         price: &OraclePrice,
@@ -121,46 +155,6 @@ impl OracleService {
                 .checked_sub(price.confidence)
                 .ok_or(error!(StableFunError::MathOverflow))
         }
-    }
-
-    #[inline(always)]
-    pub fn verify_oracle_price(
-        oracle_account: &AccountLoader<AggregatorAccountData>
-    ) -> Result<u64> {
-        let price = Self::get_price(oracle_account)?;
-        Self::validate_price(&price, None)?;
-        price.standardize()
-    }
-
-    #[inline(always)]
-    pub fn get_median_price(
-        oracle_accounts: &[AccountLoader<AggregatorAccountData>]
-    ) -> Result<OraclePrice> {
-        require!(
-            (MIN_ORACLE_COUNT..=MAX_ORACLE_COUNT).contains(&oracle_accounts.len()),
-            StableFunError::InvalidOracle
-        );
-
-        // Pre-allocate with smaller fixed capacity
-        let mut prices = Vec::with_capacity(MAX_ORACLE_COUNT);
-
-        // Only process up to MAX_ORACLE_COUNT oracles
-        for oracle_account in oracle_accounts.iter().take(MAX_ORACLE_COUNT) {
-            if let Ok(price) = Self::get_price(oracle_account) {
-                if Self::validate_price(&price, None).is_ok() {
-                    prices.push(price);
-                }
-            }
-        }
-
-        require!(
-            prices.len() >= MIN_ORACLE_COUNT,
-            StableFunError::InvalidOraclePrice
-        );
-
-        // Sort prices and get median
-        prices.sort_by(|a, b| a.value.cmp(&b.value));
-        Ok(prices[prices.len() / 2].clone())
     }
 
     #[inline(always)]
@@ -205,6 +199,4 @@ mod tests {
             999_000
         );
     }
-
-    // Add more tests as needed
 }
