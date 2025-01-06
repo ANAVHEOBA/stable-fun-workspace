@@ -115,7 +115,7 @@ impl ValidationService {
         oracle_price: &OraclePrice,
         current_collateral: u64,
     ) -> Result<()> {
-        require!(!stablecoin_mint.settings.paused, StableFunError::MintingPaused);
+        require!(!stablecoin_mint.settings.mint_paused, StableFunError::MintingPaused);
         Self::validate_amount(amount)?;
 
         let new_supply = stablecoin_mint
@@ -148,7 +148,7 @@ impl ValidationService {
         token_account: &Account<TokenAccount>,
         remaining_collateral: u64,
     ) -> Result<()> {
-        require!(!stablecoin_mint.settings.paused, StableFunError::RedeemingPaused);
+        require!(!stablecoin_mint.settings.redeem_paused, StableFunError::RedeemingPaused);
         Self::validate_amount(amount)?;
 
         require!(

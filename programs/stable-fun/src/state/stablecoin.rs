@@ -121,19 +121,9 @@ impl StablecoinMint {
     }
 
     pub fn is_paused(&self) -> bool {
-        self.settings.paused
+        self.settings.mint_paused || self.settings.redeem_paused
     }
 
-    pub fn can_mint(&self, amount: u64) -> bool {
-        if self.is_paused() {
-            return false;
-        }
-        
-        // Check against max supply
-        self.current_supply
-            .checked_add(amount)
-            .map_or(false, |new_supply| new_supply <= self.settings.max_supply)
-    }
 
     pub fn update_stats(&mut self, mint_amount: Option<u64>, burn_amount: Option<u64>, fees: Option<u64>) {
         if let Some(amount) = mint_amount {

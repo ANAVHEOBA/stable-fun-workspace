@@ -4,7 +4,9 @@ use switchboard_v2::AggregatorAccountData;
 
 use crate::state::{StablecoinMint, StablecoinVault};
 use crate::error::StableFunError;
-use crate::utils::{self, validation::ValidationService, math, token};
+use crate::utils::{self, validation::ValidationService, math};
+use crate::utils::oracle::OracleService;
+use crate::utils::token::transfer_tokens;
 
 #[derive(Accounts)]
 #[instruction(amount: u64)]
@@ -76,8 +78,8 @@ pub fn handler(ctx: Context<RedeemStablecoin>, amount: u64) -> Result<()> {
         StableFunError::InsufficientBalance
     );
 
-    // Get oracle price
-    let oracle_price = utils::oracle::verify_oracle_price(&ctx.accounts.price_feed)?;
+    // Get oracle price using the OracleService
+    let oracle_price = OracleService::verify_oracle_price(&ctx.accounts.price_feed)?;
 
     // Calculate collateral amount
     let collateral_amount = math::calculate_token_amount(
@@ -138,7 +140,7 @@ token_program::burn(
 )?;
 
     // Transfer collateral
-    token::transfer_tokens(
+    transfer_tokens(
         &ctx.accounts.vault_stablebond_account,
         &ctx.accounts.user_stablebond_account,
         &ctx.accounts.user,

@@ -19,7 +19,8 @@ pub struct UpdateSettingsParams {
     pub min_collateral_ratio: Option<u16>,
     pub fee_basis_points: Option<u16>,
     pub max_supply: Option<u64>,
-    pub paused: Option<bool>,
+    pub mint_paused: Option<bool>,
+    pub redeem_paused: Option<bool>,
 }
 
 pub fn handler(
@@ -58,8 +59,11 @@ pub fn handler(
     }
 
     // Update pause status if provided
-    if let Some(new_paused) = params.paused {
-        current_settings.paused = new_paused;
+    if let Some(new_mint_paused) = params.mint_paused {
+        current_settings.mint_paused = new_mint_paused;
+    }
+    if let Some(new_redeem_paused) = params.redeem_paused {
+        current_settings.redeem_paused = new_redeem_paused;
     }
 
     // Update last updated timestamp
@@ -182,7 +186,8 @@ mod tests {
                 min_collateral_ratio: 15000,
                 fee_basis_points: 30,
                 max_supply: 1_000_000,
-                paused: false,
+                mint_paused: false,
+                redeem_paused: false,
             },
             ..Default::default()
         };
@@ -191,19 +196,22 @@ mod tests {
             min_collateral_ratio: Some(20000),
             fee_basis_points: Some(50),
             max_supply: Some(2_000_000),
-            paused: Some(true),
+            mint_paused: Some(true),
+            redeem_paused: Some(true),
         };
 
         // Simulate update
         test_mint.settings.min_collateral_ratio = params.min_collateral_ratio.unwrap();
         test_mint.settings.fee_basis_points = params.fee_basis_points.unwrap();
         test_mint.settings.max_supply = params.max_supply.unwrap();
-        test_mint.settings.paused = params.paused.unwrap();
+        test_mint.settings.mint_paused = params.mint_paused.unwrap();
+        test_mint.settings.redeem_paused = params.redeem_paused.unwrap();
 
         assert_eq!(test_mint.settings.min_collateral_ratio, 20000);
         assert_eq!(test_mint.settings.fee_basis_points, 50);
         assert_eq!(test_mint.settings.max_supply, 2_000_000);
-        assert_eq!(test_mint.settings.paused, true);
+        assert_eq!(test_mint.settings.mint_paused, true);
+        assert_eq!(test_mint.settings.redeem_paused, true);
     }
 
     #[test]

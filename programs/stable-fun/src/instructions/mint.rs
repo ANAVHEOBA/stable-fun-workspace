@@ -76,7 +76,7 @@ pub fn handler(ctx: Context<MintStablecoin>, amount: u64) -> Result<()> {
     let vault = &mut ctx.accounts.vault;
 
     // Validate mint is not paused
-    require!(!stablecoin_mint.settings.paused, StablecoinError::MintPaused);
+    require!(!stablecoin_mint.settings.mint_paused, StablecoinError::MintPaused);
 
     // Validate amount
     require!(amount > 0, StablecoinError::InvalidAmount);
