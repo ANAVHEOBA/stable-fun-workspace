@@ -1,0 +1,18 @@
+[features]
+seeds = false
+
+[programs.devnet]
+stable_fun = "62tAbF8spj3CbDCuq2tbyY9drPXtdDP2spGV6dxmmzhX"
+
+[registry]
+url = "https://anchor.projectserum.com"
+
+[provider]
+cluster = "devnet"
+wallet = "./programs/stable-fun/program-keypair.json"
+
+[scripts]
+test = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.ts"
+
+[toolchain]
+anchor_version = "0.28.0"

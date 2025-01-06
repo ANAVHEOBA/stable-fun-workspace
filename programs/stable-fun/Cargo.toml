@@ -1,0 +1,41 @@
+[package]
+name = "stable-fun"
+version = "0.1.0"
+description = "Created with Anchor"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "stable_fun"
+
+[features]
+no-entrypoint = []
+no-idl = []
+no-log-ix-name = []
+cpi = ["no-entrypoint"]
+default = []
+
+[dependencies]
+anchor-lang = { version = "0.28.0", features = ["init-if-needed"] }
+anchor-spl = "0.28.0"
+solana-program = "1.16"
+switchboard-v2 = "0.4.0"
+ahash = "=0.8.6"  # Using a more recent stable version
+
+
+[dev-dependencies]
+solana-program-test = "1.16"
+solana-sdk = "1.16"
+
+[profile.release]
+overflow-checks = true
+lto = "fat"
+codegen-units = 1
+
+[profile.release.build-override]
+opt-level = 3
+incremental = false
+codegen-units = 1
+
+[workspace.metadata.solana]
+version = "1.16"
