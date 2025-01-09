@@ -1,56 +1,48 @@
 use anchor_lang::prelude::*;
-use switchboard_v2::AggregatorAccountData;
+use switchboard_v3::{
+    AggregatorAccountData,
+    error::SwitchboardError,
+    SWITCHBOARD_V3_DEVNET,  // Use SWITCHBOARD_V3_MAINNET for mainnet
+};
 use crate::error::StableFunError;
 
-#[inline(always)]
-pub fn load_switchboard_feed<'a>(
-    feed: &'a AccountLoader<AggregatorAccountData>
-) -> Result<std::cell::Ref<'a, AggregatorAccountData>> {
-    feed.load()
+#[derive(Clone)]
+pub struct PriceData {
+    pub price: u64,
+    pub timestamp: i64,
 }
 
-#[inline(always)]
-pub fn get_feed_result(
-    feed: &AggregatorAccountData
+#[inline(never)]
+pub fn get_validated_price(
+    feed: &AccountLoader<AggregatorAccountData>,
+    max_staleness: i64,
 ) -> Result<u64> {
-    let price = feed.latest_confirmed_round.result;
-    require!(price.mantissa > 0, StableFunError::InvalidOraclePrice);
+    let feed_data = feed.load()?;
     
-    // Convert to u64 with proper scaling
-    let price_u64 = price.mantissa as u64;
-    Ok(price_u64)
-}
+    // Get the latest result
+    let price = feed_data
+        .latest_result()
+        .ok_or(StableFunError::InvalidOraclePrice)?;
 
-#[inline(always)]
-pub fn validate_feed_data(
-    feed: &AggregatorAccountData,
-    max_staleness: i64
-) -> Result<()> {
-    let current_timestamp = Clock::get()?.unix_timestamp;
-    let last_update = feed.latest_confirmed_round.round_open_timestamp;
+    // Validate price
+    require!(price > 0, StableFunError::InvalidOraclePrice);
     
+    // Check staleness
+    let current_timestamp = Clock::get()?.unix_timestamp;
+    let last_timestamp = feed_data.latest_confirmed_round.round_open_timestamp;
     require!(
-        current_timestamp - last_update <= max_staleness,
+        current_timestamp - last_timestamp <= max_staleness,
         StableFunError::StaleOraclePrice
     );
     
-    Ok(())
-}
-
-#[inline(always)]
-pub fn get_validated_price(
-    feed: &AccountLoader<AggregatorAccountData>,
-    max_staleness: i64
-) -> Result<u64> {
-    let feed_data = load_switchboard_feed(feed)?;
-    validate_feed_data(&feed_data, max_staleness)?;
-    get_feed_result(&feed_data)
+    Ok(price as u64)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     
+    // Tests will be updated for v3
     #[test]
     fn test_price_validation() {
         // Test implementations will go here

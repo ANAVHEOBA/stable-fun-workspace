@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token::{self as token_program, Mint, Token, TokenAccount};
-use switchboard_v2::AggregatorAccountData;
+use switchboard_v3::AggregatorAccountData;
 
 use crate::state::{StablecoinMint, StablecoinVault};
 use crate::error::StableFunError;
@@ -49,6 +49,7 @@ pub struct RedeemStablecoin<'info> {
     )]
     pub vault_stablebond_account: Account<'info, TokenAccount>,
 
+    /// The Switchboard V3 aggregator account
     #[account(
         constraint = price_feed.key() == stablecoin_mint.price_feed @ StableFunError::InvalidOracle
     )]
@@ -65,7 +66,7 @@ pub struct RedeemStablecoin<'info> {
     pub system_program: Program<'info, System>,
 }
 
-#[inline(always)]
+#[inline(never)]
 pub fn handler(ctx: Context<RedeemStablecoin>, amount: u64) -> Result<()> {
     let stablecoin_mint = &mut ctx.accounts.stablecoin_mint;
     let vault = &mut ctx.accounts.vault;
@@ -119,25 +120,22 @@ pub fn handler(ctx: Context<RedeemStablecoin>, amount: u64) -> Result<()> {
     }
 
     // Execute token operations
-    // ... existing code ...
-
-// Execute token operations
-token_program::burn(
-    CpiContext::new_with_signer(
-        ctx.accounts.token_program.to_account_info(),
-        token_program::Burn {
-            mint: ctx.accounts.token_mint.to_account_info(),
-            from: ctx.accounts.user_token_account.to_account_info(),
-            authority: ctx.accounts.burn_authority.to_account_info(),
-        },
-        &[&[
-            b"mint-authority",
-            stablecoin_mint.key().as_ref(),
-            &[*ctx.bumps.get("burn_authority").unwrap()],
-        ]],
-    ),
-    burn_amount,
-)?;
+    token_program::burn(
+        CpiContext::new_with_signer(
+            ctx.accounts.token_program.to_account_info(),
+            token_program::Burn {
+                mint: ctx.accounts.token_mint.to_account_info(),
+                from: ctx.accounts.user_token_account.to_account_info(),
+                authority: ctx.accounts.burn_authority.to_account_info(),
+            },
+            &[&[
+                b"mint-authority",
+                stablecoin_mint.key().as_ref(),
+                &[*ctx.bumps.get("burn_authority").unwrap()],
+            ]],
+        ),
+        burn_amount,
+    )?;
 
     // Transfer collateral
     transfer_tokens(
@@ -189,6 +187,7 @@ pub struct RedeemEvent {
 mod tests {
     use super::*;
 
+    // Tests remain the same as they don't directly interact with Switchboard
     #[test]
     fn test_fee_calculation() {
         let fee_basis_points = 30; // 0.3%

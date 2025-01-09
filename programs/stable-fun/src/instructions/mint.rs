@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token::{self, Mint, Token, TokenAccount};
-use switchboard_v2::AggregatorAccountData;
+use switchboard_v3::AggregatorAccountData;
 
 use crate::state::{StablecoinMint, StablecoinVault};
 use crate::error::*;
@@ -55,6 +55,7 @@ pub struct MintStablecoin<'info> {
     )]
     pub vault_stablebond_account: Account<'info, TokenAccount>,
 
+    /// The Switchboard V3 aggregator account
     #[account(
         constraint = price_feed.key() == stablecoin_mint.price_feed @ StablecoinError::InvalidOracle
     )]
@@ -85,7 +86,7 @@ pub fn handler(ctx: Context<MintStablecoin>, amount: u64) -> Result<()> {
         StablecoinError::MaxSupplyExceeded
     );
 
-    // Get oracle price
+    // Get oracle price using v3 price feed
     let oracle_price = verify_oracle_price(&ctx.accounts.price_feed)?;
 
     // Calculate required collateral amount

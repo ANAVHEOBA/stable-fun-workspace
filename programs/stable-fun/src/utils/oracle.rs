@@ -1,5 +1,8 @@
 use anchor_lang::prelude::*;
-use switchboard_v2::AggregatorAccountData;
+use switchboard_v3::{
+    AggregatorAccountData,
+    SWITCHBOARD_V3_DEVNET, // Use SWITCHBOARD_V3_MAINNET for mainnet
+};
 use crate::error::StableFunError;
 
 // Constants
@@ -30,14 +33,14 @@ impl OraclePrice {
 
     #[inline(always)]
     pub fn from_switchboard(oracle: &AggregatorAccountData) -> Result<Self> {
-        let latest_round = &oracle.latest_confirmed_round;
-        let decimal = latest_round.result;
+        let result = oracle.latest_result()
+            .ok_or(error!(StableFunError::InvalidOraclePrice))?;
 
         Ok(Self {
-            value: decimal.mantissa as u64,
-            decimals: decimal.scale as u8,
-            last_updated: latest_round.round_open_timestamp,
-            confidence: latest_round.std_deviation.mantissa.unsigned_abs() as u64,
+            value: result.value as u64,
+            decimals: result.decimal_scale as u8,
+            last_updated: oracle.latest_confirmed_round.timestamp,
+            confidence: result.confidence as u64,
         })
     }
 
@@ -77,7 +80,7 @@ impl OracleService {
         let oracle = oracle_account.load()?;
         
         require!(
-            oracle.latest_confirmed_round.round_open_timestamp > 0,
+            oracle.latest_confirmed_round.timestamp > 0,
             StableFunError::InvalidOracle
         );
 

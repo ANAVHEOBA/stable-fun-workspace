@@ -1,27 +1,27 @@
 use anchor_lang::prelude::*;
 
-// Import instruction types directly from their modules
-use crate::instructions::initialize::Initialize;
-use crate::instructions::mint::MintStablecoin;
-use crate::instructions::redeem::RedeemStablecoin;
-use crate::instructions::update::{UpdateSettings, UpdateSettingsParams};
-use crate::error::StableFunError;
+declare_id!("5Zwh3KUbGG7244b6mczjgnMeT567UyR86PEyEuM1sMft");
 
-declare_id!("GjMGzVov7eb6igXCfFVSLeBnnzbS5QwyhLwTzhP2dABU");
-
-// Module declarations
 pub mod state;
 pub mod instructions;
 pub mod error;
 pub mod utils;
 pub mod constants;
 
-#[program]
-pub mod stable_fun {
-    use super::*;
-    use crate::constants::{MIN_NAME_LENGTH, MIN_SYMBOL_LENGTH, MIN_COLLATERAL_RATIO};
+use crate::instructions::{
+    initialize::Initialize,
+    mint::MintStablecoin,
+    redeem::RedeemStablecoin,
+    update::{UpdateSettings, UpdateSettingsParams},
+};
+use crate::error::StableFunError;
+use crate::constants::{MIN_NAME_LENGTH, MIN_SYMBOL_LENGTH, MIN_COLLATERAL_RATIO};
 
-    #[inline(always)]
+#[program]
+mod stable_fun {
+    use super::*;
+
+    #[inline(never)]
     pub fn initialize(
         ctx: Context<Initialize>,
         name: String,
@@ -29,6 +29,7 @@ pub mod stable_fun {
         target_currency: String,
         initial_supply: u64,
     ) -> Result<()> {
+        msg!("Initializing with name: {}, symbol: {}", name, symbol);
         require!(
             name.len() >= MIN_NAME_LENGTH,
             StableFunError::NameTooShort
@@ -37,43 +38,39 @@ pub mod stable_fun {
             symbol.len() >= MIN_SYMBOL_LENGTH,
             StableFunError::SymbolTooShort
         );
-        instructions::initialize::handler(ctx, name, symbol, target_currency, initial_supply)
+        crate::instructions::initialize::handler(ctx, name, symbol, target_currency, initial_supply)
     }
 
-    #[inline(always)]
+    #[inline(never)]
     pub fn mint(
         ctx: Context<MintStablecoin>,
         amount: u64
     ) -> Result<()> {
+        msg!("Minting {} tokens", amount);
         require!(amount > 0, StableFunError::InvalidAmount);
-        instructions::mint::handler(ctx, amount)
+        crate::instructions::mint::handler(ctx, amount)
     }
 
-    #[inline(always)]
+    #[inline(never)]
     pub fn redeem(
         ctx: Context<RedeemStablecoin>,
         amount: u64
     ) -> Result<()> {
+        msg!("Redeeming {} tokens", amount);
         require!(amount > 0, StableFunError::InvalidAmount);
-        instructions::redeem::handler(ctx, amount)
+        crate::instructions::redeem::handler(ctx, amount)
     }
 
-    #[inline(always)]
+    #[inline(never)]
     pub fn update_settings(
         ctx: Context<UpdateSettings>,
         params: UpdateSettingsParams,
     ) -> Result<()> {
+        msg!("Updating settings");
         require!(
             params.min_collateral_ratio.unwrap_or(MIN_COLLATERAL_RATIO) >= MIN_COLLATERAL_RATIO,
             StableFunError::CollateralRatioTooLow
         );
-        instructions::update::handler(ctx, params)
+        crate::instructions::update::handler(ctx, params)
     }
-}
-
-// Re-exports (moved to a separate module to avoid conflicts)
-pub mod prelude {
-    pub use crate::error::StableFunError;
-    pub use crate::state::{StablecoinMint, StablecoinVault};
-    pub use crate::instructions::{Initialize, MintStablecoin, RedeemStablecoin, UpdateSettings};
 }

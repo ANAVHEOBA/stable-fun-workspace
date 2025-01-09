@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token::{Mint, Token, TokenAccount};
-use switchboard_v2::AggregatorAccountData;
+use switchboard_v3::AggregatorAccountData;
 
 use crate::state::{StablecoinMint, StablecoinVault, StateAccount};
 use crate::state::stablecoin::{StablecoinSettings, StablecoinStats};
@@ -78,6 +78,10 @@ pub struct Initialize<'info> {
     )]
     pub vault_token_account: Account<'info, TokenAccount>,
 
+    /// Switchboard V3 aggregator account
+    #[account(
+        constraint = price_feed.load()?.is_initialized() @ StableFunError::InvalidOracle
+    )]
     pub price_feed: AccountLoader<'info, AggregatorAccountData>,
 
     pub system_program: Program<'info, System>,
@@ -106,12 +110,13 @@ pub fn handler(
         StableFunError::InvalidCurrency
     );
 
-    // Verify oracle
+    // Verify oracle with V3 validation
     let oracle = ctx.accounts.price_feed.load()?;
-    require!(
-        oracle.latest_confirmed_round.round_open_timestamp > 0,
-        StableFunError::InvalidOracle
-    );
+    let latest_result = oracle
+        .latest_result()
+        .ok_or(StableFunError::InvalidOraclePrice)?;
+    
+    require!(latest_result > 0, StableFunError::InvalidOraclePrice);
 
     let clock = Clock::get()?;
     
